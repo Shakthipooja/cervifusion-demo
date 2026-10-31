@@ -15,9 +15,12 @@ st.warning(
     "must not be used for diagnosis, screening, or treatment decisions."
 )
 
-# Hugging Face repository and exact uploaded model filename
+# Hugging Face repository and exact model filename
 MODEL_REPO = "Shakthipooja/cervifusion-model"
 MODEL_FILENAME = "cervifusion_model (1).keras"
+
+# This is only a rough confidence filter, not an invalid-image detector.
+CONFIDENCE_THRESHOLD = 0.70
 
 
 @st.cache_resource
@@ -41,7 +44,7 @@ try:
 
     if len(class_names) != model.output_shape[-1]:
         st.error(
-            "The number of class names does not match the model's output. "
+            "The number of class names does not match the model output. "
             "Check class_names.json and the trained model."
         )
         st.stop()
@@ -52,7 +55,7 @@ except Exception as error:
 
 
 uploaded_file = st.file_uploader(
-    "Upload a cell image",
+    "Upload a cervical-cell image",
     type=["jpg", "jpeg", "png", "bmp", "tif", "tiff"],
 )
 
@@ -70,23 +73,32 @@ if uploaded_file is not None:
             use_container_width=True,
         )
 
-        # Preprocessing must match the preprocessing used during training.
+        # This preprocessing must match the preprocessing used during training.
         resized_image = image.resize((224, 224))
         image_array = np.asarray(resized_image, dtype=np.float32)[None, ...]
 
         scores = model.predict(image_array, verbose=0)[0]
         predicted_index = int(np.argmax(scores))
+        top_score = float(scores[predicted_index])
 
         st.subheader("Model output")
-        st.write("Predicted dataset class:", class_names[predicted_index])
-        st.write(f"Model score: {scores[predicted_index]:.1%}")
+
+        if top_score < CONFIDENCE_THRESHOLD:
+            st.error(
+                "Uncertain result. The image may not match the supported "
+                "dataset classes. Please upload a cervical-cell image."
+            )
+        else:
+            st.write("Predicted dataset class:", class_names[predicted_index])
+            st.write(f"Model score: {top_score:.1%}")
 
         st.subheader("Scores by class")
         for name, score in zip(class_names, scores):
             st.write(f"{name}: {score:.1%}")
 
         st.caption(
-            "The model score is not a probability of disease or a clinical diagnosis."
+            "The model score is not a probability of disease or a clinical diagnosis. "
+            "A high score does not guarantee that the uploaded image is a cervical-cell image."
         )
 
     except (UnidentifiedImageError, OSError):
