@@ -53,6 +53,10 @@ These are dataset categories, not cancer diagnoses.
 
 ### 1. Clone the repository
 
-```bash
-git clone https://github.com/YOUR-USERNAME/cervifusion-demo.git
-cd cervifusion-demo
+
+streamlit
+tensorflow
+numpy
+pillow
+huggingface_hub
+
